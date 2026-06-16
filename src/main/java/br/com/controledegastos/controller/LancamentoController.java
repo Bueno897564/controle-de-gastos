@@ -8,7 +8,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -19,28 +18,18 @@ public class LancamentoController {
     @Autowired
     private LancamentoRepository lancamentoRepository;
 
-    // Método auxiliar para carregar dados e calcular o saldo
-    private void carregarDados(Model model) {
+    private void carregarLancamentos(Model model) {
         List<Lancamento> lancamentos = lancamentoRepository.findAll();
         lancamentos.sort(Comparator.comparing(Lancamento::getData).reversed());
-
-        // Cálculo do Saldo (Receitas - Despesas)
-        BigDecimal saldo = lancamentos.stream()
-                .map(l -> l.getTipo() == TipoLancamento.RECEITA ? l.getValor() : l.getValor().negate())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
         model.addAttribute("lancamentos", lancamentos);
-        model.addAttribute("saldo", saldo);
     }
-
 
     @GetMapping("/")
     public String index(Model model) {
-        carregarDados(model);
+        carregarLancamentos(model);
         model.addAttribute("novoLancamento", new Lancamento());
         model.addAttribute("tipos", TipoLancamento.values());
-
-        // Garante que o objeto exista para o parser do Thymeleaf na carga inicial da página.
+        // Garante que o objeto exista para o parser do Thymeleaf na carga inicial da pagina.
         model.addAttribute("lancamentoParaEditar", new Lancamento());
         return "index";
     }
@@ -48,14 +37,22 @@ public class LancamentoController {
     @PostMapping("/lancamentos")
     public String addLancamento(@ModelAttribute Lancamento novoLancamento, Model model) {
         lancamentoRepository.save(novoLancamento);
-        carregarDados(model);
+        carregarLancamentos(model);
         return "index :: lista-lancamentos";
     }
 
     @DeleteMapping("/lancamentos/{id}")
     public String deleteLancamento(@PathVariable Long id, Model model) {
         lancamentoRepository.deleteById(id);
-        carregarDados(model);
+        carregarLancamentos(model);
+        return "index :: lista-lancamentos";
+    }
+
+    // Endpoint dedicado para retornar apenas o fragmento da lista.
+    // Usado pelo botão "Cancelar" da edição para não injetar a página inteira.
+    @GetMapping("/lancamentos")
+    public String getLancamentos(Model model) {
+        carregarLancamentos(model);
         return "index :: lista-lancamentos";
     }
 
@@ -67,6 +64,7 @@ public class LancamentoController {
             model.addAttribute("tipos", TipoLancamento.values());
             return "index :: form-edicao";
         }
+        carregarLancamentos(model);
         return "index :: lista-lancamentos";
     }
 
@@ -81,7 +79,7 @@ public class LancamentoController {
             lancamentoExistente.setData(lancamentoAtualizado.getData());
             lancamentoRepository.save(lancamentoExistente);
         }
-        carregarDados(model);
+        carregarLancamentos(model);
         return "index :: lista-lancamentos";
     }
 }
